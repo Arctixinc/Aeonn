@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: akhileshns/heroku-deploy@v3.12.12
         with:
-          heroku_api_key: 28dd9d6e-33cd-4328-a3f4-61a99b091ec6
+          heroku_api_key: 35fdd575-2627-4b9d-aeb9-bf74a73116a5
           heroku_app_name: anotherdwbot4
           heroku_email: wuzzumva5l@zod.edu.pl
           usedocker: true
