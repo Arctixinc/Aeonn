@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: akhileshns/heroku-deploy@v3.12.12
+      - uses: akhileshns/heroku-deploy@v3.13.15
         with:
           heroku_api_key: 35fdd575-2627-4b9d-aeb9-bf74a73116a5
           heroku_app_name: anotherdwbot3
