@@ -10,7 +10,7 @@ jobs:
       - uses: akhileshns/heroku-deploy@v3.12.12
         with:
           heroku_api_key: 35fdd575-2627-4b9d-aeb9-bf74a73116a5
-          heroku_app_name: anotherdwbot4
+          heroku_app_name: anotherdwbot3
           heroku_email: wuzzumva5l@zod.edu.pl
           usedocker: true
           docker_heroku_process_type: web
