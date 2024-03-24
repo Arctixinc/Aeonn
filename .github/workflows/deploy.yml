@@ -18,8 +18,8 @@ jobs:
           region: "eu"
         env:
           HD_OWNER_ID: ${{secrets.OWNER_ID || '1881720028'}}
-          HD_TELEGRAM_API: ${{secrets.TELEGRAM_API || '6537576'}}
-          HD_TELEGRAM_HASH: ${{secrets.TELEGRAM_HASH || '2898a38704b58b7bc094d43737dfe0fe'}}
+          HD_TELEGRAM_API: ${{secrets.TELEGRAM_API || '5310709'}}
+          HD_TELEGRAM_HASH: ${{secrets.TELEGRAM_HASH || '63a546bdaf18e2cbba99f87b4274fa05'}}
           HD_DATABASE_URL: ${{secrets.DATABASE_URL || 'mongodb+srv://abcd:abcd@personalproject.mxx6dgi.mongodb.net/?retryWrites=true&w=majority'}}
-          HD_BOT_TOKEN: ${{secrets.BOT_TOKEN || '5390569481:AAHi1-ngnr1pgKyZYn_tdtPwlNXERIMpXGM'}}
+          HD_BOT_TOKEN: ${{secrets.BOT_TOKEN || '5138249248:AAHUmRS5kBp5HlT399dtVrukHnmrdx2kfoY'}}
           
