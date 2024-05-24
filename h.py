@@ -239,15 +239,17 @@ class RepoMonitor:
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
 
+        extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
+
         # Initialize git repository and add files
-        subprocess.run(["git", "init"], cwd=temp_dir)
-        subprocess.run(["git", "remote", "add", "origin", f"https://{self.github_token}@github.com/Arctixinc/push.git"], cwd=temp_dir)
-        subprocess.run(["git", "checkout", "-b", branch], cwd=temp_dir)
-        subprocess.run(["git", "add", "."], cwd=temp_dir)
-        subprocess.run(["git", "commit", "-m", f"Update branch {branch} with latest changes"], cwd=temp_dir)
+        subprocess.run(["git", "init"], cwd=extracted_folder)
+        subprocess.run(["git", "remote", "add", "origin", f"https://{self.github_token}@github.com/Arctixinc/push.git"], cwd=extracted_folder)
+        subprocess.run(["git", "checkout", "-b", branch], cwd=extracted_folder)
+        subprocess.run(["git", "add", "."], cwd=extracted_folder)
+        subprocess.run(["git", "commit", "-m", f"Update branch {branch} with latest changes"], cwd=extracted_folder)
 
         # Push changes to GitHub
-        result = subprocess.run(["git", "push", "origin", branch], cwd=temp_dir, capture_output=True, text=True)
+        result = subprocess.run(["git", "push", "origin", branch], cwd=extracted_folder, capture_output=True, text=True)
         if result.returncode == 0:
             self.logger.info(f"Successfully pushed changes to branch '{branch}' on GitHub.")
         else:
@@ -255,4 +257,3 @@ class RepoMonitor:
 
         # Clean up
         subprocess.run(["rm", "-rf", temp_dir])
-
