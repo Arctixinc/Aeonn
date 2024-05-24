@@ -7,9 +7,6 @@ from pytz import timezone
 import os
 import zipfile
 import subprocess
-
-
-
 class RepoMonitor:
     TEMP_DIR = 'temp/'
     CHECK_INTERVAL = 60  # seconds
