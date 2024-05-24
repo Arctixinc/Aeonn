@@ -234,7 +234,10 @@ class RepoMonitor:
         
         extracted_dir = os.path.join(self.TEMP_DIR, os.listdir(self.TEMP_DIR)[0])
         self.upload_directory_to_github(extracted_dir, branch_name)
-        shutil.rmtree(extracted_dir)
+        if os.path.isdir(extracted_dir):
+            shutil.rmtree(extracted_dir)
+        else:
+            os.remove(extracted_dir)
 
     def upload_directory_to_github(self, directory_path, branch_name):
         files_to_upload = []
