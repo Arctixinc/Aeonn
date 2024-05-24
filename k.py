@@ -231,42 +231,43 @@ class RepoMonitor:
     def current_time_ist(self):
         return datetime.now(self.ist).strftime('%Y-%m-%d %I:%M:%S %p')
 
-    def upload_to_github(self, branch, zip_path):
+    def upload_to_github(self, branch, zip_path, last_updated):
         temp_dir = f"{self.TEMP_DIR}{branch}_extracted"
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
-
+    
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
-
+    
         extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
-
+    
         # Initialize git repository and add files
         subprocess.run(["git", "init"], cwd=extracted_folder)
         subprocess.run(["git", "remote", "add", "origin", f"https://{self.github_token}@github.com/Arctixinc/push.git"], cwd=extracted_folder)
-        subprocess.run(["git", "checkout", "-b", branch], cwd=extracted_folder)
+        subprocess.run(["git", "fetch", "origin", branch], cwd=extracted_folder)  # Fetch existing history of the branch
+        subprocess.run(["git", "checkout", "-b", branch, f"origin/{branch}"], cwd=extracted_folder)  # Checkout branch with existing history
         subprocess.run(["git", "add", "."], cwd=extracted_folder)
-
+    
         # Exclude certain files or directories like "workflows"
         subprocess.run(["git", "reset", "--", "workflows"], cwd=extracted_folder)
         subprocess.run(["git", "clean", "-fdX"], cwd=extracted_folder)
-
-        commit_message = f"Update branch {branch} with latest changes tracked by RepoMonitor script"
+    
+        commit_message = f"Update branch {branch} with latest changes tracked by RepoMonitor script at {last_updated}"
         subprocess.run(["git", "commit", "-m", commit_message], cwd=extracted_folder)
-
+    
         # Push changes to GitHub
         result = subprocess.run(["git", "push", "origin", branch, "--force"], cwd=extracted_folder, capture_output=True, text=True)
         if result.returncode == 0:
             self.logger.info(f"Successfully pushed changes to branch '{branch}' on GitHub.")
         else:
             self.logger.error(f"Failed to push changes to branch '{branch}' on GitHub: {result.stderr}")
-
+    
         # Clean up
         try:
             subprocess.run(["rm", "-rf", temp_dir])
         except Exception as e:
             self.logger.error(f"An error occurred while cleaning up: {e}")
-
+    
         # Remove the zip file
         try:
             os.remove(zip_path)
