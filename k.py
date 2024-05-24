@@ -231,7 +231,7 @@ class RepoMonitor:
     def current_time_ist(self):
         return datetime.now(self.ist).strftime('%Y-%m-%d %I:%M:%S %p')
 
-    def upload_to_github(self, branch, zip_path, last_updated):
+    def upload_to_github(self, branch, zip_path):
         temp_dir = f"{self.TEMP_DIR}{branch}_extracted"
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
@@ -252,7 +252,7 @@ class RepoMonitor:
         subprocess.run(["git", "reset", "--", "workflows"], cwd=extracted_folder)
         subprocess.run(["git", "clean", "-fdX"], cwd=extracted_folder)
     
-        commit_message = f"Update branch {branch} with latest changes tracked by RepoMonitor script at {last_updated}"
+        commit_message = f"Update branch {branch} with latest changes tracked by RepoMonitor script"
         subprocess.run(["git", "commit", "-m", commit_message], cwd=extracted_folder)
     
         # Push changes to GitHub
@@ -265,11 +265,13 @@ class RepoMonitor:
         # Clean up
         try:
             subprocess.run(["rm", "-rf", temp_dir])
+            self.logger.info(f"Successfully removed extracted folder '{temp_dir}'.")
         except Exception as e:
             self.logger.error(f"An error occurred while cleaning up: {e}")
     
         # Remove the zip file
         try:
             os.remove(zip_path)
+            self.logger.info(f"Successfully removed zip file '{zip_path}'.")
         except Exception as e:
             self.logger.error(f"An error occurred while removing the zip file: {e}")
