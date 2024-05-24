@@ -6,8 +6,7 @@ from datetime import datetime
 from pytz import timezone
 import os
 import zipfile
-import base64
-import shutil
+import subprocess
 
 class RepoMonitor:
     TEMP_DIR = 'temp/'
@@ -200,7 +199,7 @@ class RepoMonitor:
         if branches:
             zip_file_path = self.create_all_branch_zip(branches)
             if zip_file_path:
-                self.upload_zip_to_github(zip_file_path, "main")
+                self.send_telegram_document(zip_file_path, f"Initial upload of all branches for '{self.repo_name}' at {self.current_time_ist()}")
                 os.remove(zip_file_path)
                 self.initial_zip_sent = True
 
@@ -223,152 +222,37 @@ class RepoMonitor:
 
                     branch_zip = self.download_branch_zip(branch)
                     if branch_zip:
-                        self.upload_zip_to_github(branch_zip, branch)
+                        self.send_telegram_document(branch_zip, f"Updated branch '{branch}' of repository '{self.repo_name}' at {self.current_time_ist()}")
+                        self.upload_to_github(branch, branch_zip)
                         os.remove(branch_zip)
                     else:
                         self.logger.error(f"Failed to download zip file for branch '{branch}'")
 
-    def upload_zip_to_github(self, zip_file_path, branch_name):
-        with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
-            zip_file.extractall(self.TEMP_DIR)
-        
-        extracted_dir = os.path.join(self.TEMP_DIR, os.listdir(self.TEMP_DIR)[0])
-        self.upload_directory_to_github(extracted_dir, branch_name)
-        if os.path.isdir(extracted_dir):
-            shutil.rmtree(extracted_dir)
-        else:
-            os.remove(extracted_dir)
-
-    def upload_directory_to_github(self, directory_path, branch_name):
-        files_to_upload = []
-        for root, dirs, files in os.walk(directory_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                relative_path = os.path.relpath(file_path, directory_path)
-                with open(file_path, 'rb') as f:
-                    content = base64.b64encode(f.read()).decode('utf-8')
-                    files_to_upload.append((relative_path, content))
-
-        self.create_or_update_files(branch_name, files_to_upload)
-
-    def create_or_update_files(self, branch_name, files):
-        headers = {
-            'Authorization': f'token {self.github_token}',
-            'Content-Type': 'application/json'
-        }
-
-        base_api_url = f"https://api.github.com/repos/Arctixinc/push"
-        branch_url = f"{base_api_url}/branches/{branch_name}"
-        branch_data = self.get_github_api_response(branch_url)
-
-        if not branch_data:
-            self.initialize_repo(branch_name, files)
-        else:
-            commit_sha = branch_data['commit']['sha']
-            commit_data = self.get_github_api_response(f"{base_api_url}/git/commits/{commit_sha}")
-            base_tree_sha = commit_data['tree']['sha']
-
-            new_tree_sha = self.create_tree(base_api_url, files, base_tree_sha)
-            if new_tree_sha:
-                commit_sha = self.create_commit(base_api_url, new_tree_sha, commit_sha)
-                if commit_sha:
-                    self.update_branch(base_api_url, branch_name, commit_sha)
-
-    def initialize_repo(self, branch_name, files):
-        headers = {
-            'Authorization': f'token {self.github_token}',
-            'Content-Type': 'application/json'
-        }
-
-        base_api_url = f"https://api.github.com/repos/Arctixinc/push"
-        new_tree_sha = self.create_tree(base_api_url, files, None)
-        if new_tree_sha:
-            commit_sha = self.create_commit(base_api_url, new_tree_sha, None)
-            if commit_sha:
-                self.create_branch(base_api_url, branch_name, commit_sha)
-
-    def create_tree(self, base_api_url, files, base_tree_sha):
-        headers = {
-            'Authorization': f'token {self.github_token}',
-            'Content-Type': 'application/json'
-        }
-
-        tree_data = []
-        for file_path, content in files:
-            tree_data.append({
-                'path': file_path,
-                'mode': '100644',
-                'type': 'blob',
-                'content': content
-            })
-
-        tree_payload = {
-            'tree': tree_data
-        }
-
-        if base_tree_sha:
-            tree_payload['base_tree'] = base_tree_sha
-
-        response = requests.post(f"{base_api_url}/git/trees", json=tree_payload, headers=headers)
-        if response.status_code == 201:
-            return response.json()['sha']
-        else:
-            self.logger.error(f"Failed to create tree: {response.status_code}, {response.text}")
-            return None
-
-    def create_commit(self, base_api_url, tree_sha, parent_sha):
-        headers = {
-            'Authorization': f'token {self.github_token}',
-            'Content-Type': 'application/json'
-        }
-
-        commit_message = f"Update at {datetime.now().isoformat()}"
-        commit_payload = {
-            'message': commit_message,
-            'tree': tree_sha,
-        }
-
-        if parent_sha:
-            commit_payload['parents'] = [parent_sha]
-
-        response = requests.post(f"{base_api_url}/git/commits", json=commit_payload, headers=headers)
-        if response.status_code == 201:
-            return response.json()['sha']
-        else:
-            self.logger.error(f"Failed to create commit: {response.status_code}, {response.text}")
-            return None
-
-    def update_branch(self, base_api_url, branch_name, commit_sha):
-        headers = {
-            'Authorization': f'token {self.github_token}',
-            'Content-Type': 'application/json'
-        }
-
-        ref_url = f"{base_api_url}/git/refs/heads/{branch_name}"
-        ref_payload = {
-            'sha': commit_sha,
-            'force': True
-        }
-
-        response = requests.patch(ref_url, json=ref_payload, headers=headers)
-        if response.status_code != 200:
-            self.logger.error(f"Failed to update branch: {response.status_code}, {response.text}")
-
-    def create_branch(self, base_api_url, branch_name, commit_sha):
-        headers = {
-            'Authorization': f'token {self.github_token}',
-            'Content-Type': 'application/json'
-        }
-
-        ref_url = f"{base_api_url}/git/refs"
-        ref_payload = {
-            'ref': f"refs/heads/{branch_name}",
-            'sha': commit_sha
-        }
-
-        response = requests.post(ref_url, json=ref_payload, headers=headers)
-        if response.status_code != 201:
-            self.logger.error(f"Failed to create branch: {response.status_code}, {response.text}")
-
     def current_time_ist(self):
         return datetime.now(self.ist).strftime('%Y-%m-%d %I:%M:%S %p')
+
+    def upload_to_github(self, branch, zip_path):
+        temp_dir = f"{self.TEMP_DIR}{branch}_extracted"
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
+
+        # Initialize git repository and add files
+        subprocess.run(["git", "init"], cwd=temp_dir)
+        subprocess.run(["git", "remote", "add", "origin", f"https://{self.github_token}@github.com/Arctixinc/push.git"], cwd=temp_dir)
+        subprocess.run(["git", "checkout", "-b", branch], cwd=temp_dir)
+        subprocess.run(["git", "add", "."], cwd=temp_dir)
+        subprocess.run(["git", "commit", "-m", f"Update branch {branch} with latest changes"], cwd=temp_dir)
+
+        # Push changes to GitHub
+        result = subprocess.run(["git", "push", "origin", branch], cwd=temp_dir, capture_output=True, text=True)
+        if result.returncode == 0:
+            self.logger.info(f"Successfully pushed changes to branch '{branch}' on GitHub.")
+        else:
+            self.logger.error(f"Failed to push changes to branch '{branch}' on GitHub: {result.stderr}")
+
+        # Clean up
+        subprocess.run(["rm", "-rf", temp_dir])
+
